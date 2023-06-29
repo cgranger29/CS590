@@ -162,5 +162,3 @@ print(heapq.heappop(flight.upgrade_heap))
 print(heapq.heappop(flight.upgrade_heap))
 
 print(flight.upgrade_heap)
-upgrade_system.txt
-Displaying upgrade_system.txt.

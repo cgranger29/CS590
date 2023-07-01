@@ -20,50 +20,35 @@ Your code file must compile and accept any number of inputs in the format you sp
 """
 
 import heapq
-import datetime
-import uuid
-import sys
 
 """
 Status will map to an int for easy comparison for the heap.
 super will be highest priority at 1 and silver lowest at 4. Will be utilized in a min heap
 """
 
-# making this global for class access to priority mappings to be used in the min heap.
 STATUS_MAPPINGS = {
-    "super": 1,
-    "platinum": 2,
-    "gold": 3,
-    "silver": 4
-}
-
-MENU_OPTIONS = {
-    1: "Add a flyer to the upgrade queue.",
-    2: "Cancel a flyers upgrade request.",
-    3: "Get top priority flyers for flight upgrades.",
-    4: "Display all flyers currently in the upgrade queue. (This is in order of upgrade priority)",
-    5: "Exit the system."
+    "Super": 1,
+    "Platinum": 2,
+    "Gold": 3,
+    "Silver": 4
 }
 class Flyer:
-    def __init__(self, flyer_name: str, status: str, time_entered_queue = None):
-        # default to 0 so in case of invalid status input. Can be used for checks later.
+    def __init__(self, flyer_name: str, status: str, time_in_queue = None, confirmation_code = None):
         self.flyer_name = flyer_name
         self.status = STATUS_MAPPINGS.get(status, 0)
         self.status_to_str = status
-        #assigment of the confirmation code and queue time will be the responsibility of the flight upgrade class since its not needed till the request is made
-        self.time_entered_queue = time_entered_queue
-        self.confirmation_code = None
+        self.time_in_queue = time_in_queue
+        self.confirmation_code = confirmation_code
 
     def __lt__(self, other_flyer):
         '''
         going to override comparison operator so we can account for the Flyer object struct on heap adds and deletes
-        this is not completely intuitive since the less than comparison is now going to function as more of a priority comparison
-        so if current_flyer < other_flyer it means that it has a higher priority so will be higher on the heap (higher meaning closer to root)
+        so if current_flyer > other_flyer it means that it has a higher priority so will be higher on the heap (higher meaning closer to root)
         '''
         if self.status == other_flyer.status:
             # if current flyer time is greater it means they were added to queue after so lower priority on same status
-            if self.time_entered_queue > other_flyer.time_entered_queue:
-                return False
+            if self.time_in_queue > other_flyer.time_in_queue:
+                return True
         # lower status (greater int value in this case) means lower priority so current_flyer < other_flyer
         elif self.status > other_flyer.status:
             return False
@@ -74,8 +59,8 @@ class Flyer:
     def __le__(self, other_flyer):
         # mimics the __lt__ override so we can use less than equal or greater than equal comprison
         if self.status == other_flyer.status:
-            if self.time_entered_queue > other_flyer.time_entered_queue:
-                return False
+            if self.time_in_queue > other_flyer.time_in_queue:
+                return True
         elif self.status > other_flyer.status:
             return False
 
@@ -83,52 +68,20 @@ class Flyer:
 
     def __str__(self):
         # lets also print the flyer info instead of the object on print() for each peek
-        return f"Flyer: {self.flyer_name}\nStatus: {self.status_to_str}\nTime entered queue: {self.time_entered_queue}\nConfirmation Code: {self.confirmation_code}"
-
-    # assign current time on request add, use for fallback comparison if status are equal between two flyers.
-    def set_current_time(self, time_to_set = None):
-        self.time_entered_queue = time_to_set
-    
-    #setter for confirmation code
-    def set_confirmation_code(self, confirmation_code: int):
-        self.confirmation_code = confirmation_code
-    
-    #getter for confirmation code
-    def get_confirmation_code(self):
-        return self.confirmation_code
+        return f"Flyer: {self.flyer_name}\nStatus: {self.status_to_str}\nTime in queue: {self.time_in_queue}\nConfirmation Code: {self.confirmation_code}"
 
 class FlightUpgradeSystem:
-    def __init__(self, flight_name: str):
-        self.flight_name = flight_name
+    def __init__(self):
         self.upgrade_heap = []
-        # Going to just store cancellation confirmation codes in a set and then check it whenever we want to upgrade people on the flight or pull k flyers
+        # Going to just store cancellation confirmation codes in a set and then check it whenever we call for highest k flyers
         # this should give us the O(logn) 'deletion' without having to search the heap and instead can just remove when we encounter it naturally
         # In other words, for each heap pop we will always check the set for the confirmation code existence and if encountered we can just ignore / discard as encountered
         self.cancellations = set()
 
-    def request_upgrade(self, flyer: Flyer):
+    def add_to_upgrade_queue(self, flyer: Flyer):
         # add Flyer to the queue
-        # this will also need to set the confirmation code on the Flyer
-
-        #since this just needs to be O(logn) thats a typical heap insertion that will bubble up
+        # since this just needs to be O(logn) thats a typical heap insertion that will bubble up
         heapq.heappush(self.upgrade_heap, flyer)
-        # set confirmation code to each flyer
-        flyer.set_confirmation_code(self.generate_confirmation_code())
-
-        print(f"Your flight upgrade confirmation code for flyer {flyer.flyer_name} is {flyer.confirmation_code}.\n")
-
-        return flyer.confirmation_code
-
-    def generate_confirmation_code(self):
-        #generates a random uuid value for use in confirmation code
-        return uuid.uuid4()
-
-    def cancel_upgrade(self, flyer: Flyer = None, confirmation_code = None):
-        if flyer:
-            if flyer.confirmation_code not in self.cancellations:
-                self.cancellations.add(flyer.confirmation_code)
-        elif confirmation_code:
-            self.cancellations.add(confirmation_code)
     
     def find_highest_priority_flyers_for_upgrade(self, number_of_available_seats: int):
         _start = 0
@@ -140,89 +93,68 @@ class FlightUpgradeSystem:
                 res.append(current_flyer)
                 _start += 1
                 print(f"{current_flyer}\n")
-            else:
-                # if confirmation code is in the cancellation pop flyer off the heap but ignore adding to upgrades
-                print(f"{current_flyer.flyer_name} was found in cancellations. Skipping flyer add and removing from heap.\n")
 
         return res
-class FlightSystemUI:
-    def __init__(self):
-        self.possible_user_inputs = set([1,2,3,4,5])
-        self.system = FlightUpgradeSystem("Flight Whatever")
+       
+def main(file):
+    
+    flight_system = FlightUpgradeSystem()
 
-    def display_main_menu(self):
-        print("\n#####Please select from the system options below:#####\n")
-        for option_num, option_val in MENU_OPTIONS.items():
-            print(f"{option_num}: {option_val}")
+    with open(file) as fs:
 
-    def add_flyer(self):
-        flyer_name = input("Please enter the flyers name: ")
-        flyer_status = input("Please enter the flyers status (silver, gold, platinum, super): ")
+        file_output = [line.split(" ") for line in fs.read().splitlines() if line != ""]
 
-        if flyer_status not in STATUS_MAPPINGS:
-            print(f"Unknown status of {flyer_status} entered. Please run again with a valid status input.")
-            return
+        number_of_flyers, k_highest_priority_flyer, num_cancellations = file_output[0]
 
-        flyer_to_add = Flyer(flyer_name, flyer_status)
-
-        flyer_to_add.set_current_time(datetime.datetime.now())
-        confirm_code = self.system.request_upgrade(flyer_to_add)
-
-        print(f"Confirmation code for flyer {flyer_name} is {confirm_code}. Please store this as it will be needed if you would like to make a cancellation.\n*PLEASE NOTE that confirmation codes can also be viewed using option 4.")
-
-    def upgrade_highest_priority_flyers(self):
-        try:
-            flyers_to_upgrade = int(input("Please enter the the number of flyers to upgrade: "))
-            if flyers_to_upgrade <= 0:
-                raise ValueError
-            print("\n###The below flyers have been upgraded in order of appearance.###\n")
-            self.system.find_highest_priority_flyers_for_upgrade(flyers_to_upgrade)
-
-        except ValueError:
-            print("\nInvalid entry. Value must be an int greater than 0")
-
-    def cancel_flyer_upgrade_request(self):
-
-        confirmation_code = input("Please enter a valid confirmation code: ")
-        self.system.cancel_upgrade(confirmation_code = confirmation_code)
-
-        print(f"Confirmation code {confirmation_code} was added to the system.")
-
-    def display_all_flyers_currently_in_queue(self):
-        print("\n#####Flyers currently in the upgrade queue:#####\n")
-        for _flyer in self.system.upgrade_heap:
-            if str(_flyer.confirmation_code) not in self.system.cancellations:
-                print(f"\n{_flyer}\n")
-
-    def run_system(self):
-        user_input = 0
-        print("###Welcome to Flight Upgrade System for FooBar flights. Please select an option below:###\n")
-
-        while user_input != 5:
-            self.display_main_menu()
-            try:
-                user_input = int(input("\nOption: "))
-            except ValueError:
-                print(f"!!! Only int values 1-5 are valid inputs. No characters are allowed. !!!\n")
-
-            if user_input not in self.possible_user_inputs:
-                print(f"\n{user_input} is not a valid input. Please select one of the input option numbers listed.\n\n")
-                continue
-            # theres only 5 options so ill just chain some if / elif statements otherwise would handle this differently with dict mappings
-            if user_input == 1:
-                self.add_flyer()
-            elif user_input == 2:
-                self.cancel_flyer_upgrade_request()
-            elif user_input == 3:
-                self.upgrade_highest_priority_flyers()
-            elif user_input == 4:
-                self.display_all_flyers_currently_in_queue()
-            elif user_input == 5:
-                print("Exiting system.")
-                sys.exit(0)
+        # convert text file flyers to Flyer class.
+        for i in range(1, len(file_output) - int(num_cancellations)):
+            flyer_name = file_output[i][0]
+            flyer_id = file_output[i][1]
+            flyer_time = file_output[i][2]
+            flyer_status = file_output[i][3]
             
+            _flyer = Flyer(flyer_name=flyer_name, status = flyer_status, time_in_queue=int(flyer_time), confirmation_code=flyer_id)
 
-# run this directly no importing
+            flight_system.add_to_upgrade_queue(_flyer)
+
+        # get the cancellation numbers
+        for i in range(int(number_of_flyers) + 1, len(file_output)):
+            flight_system.cancellations.add(file_output[i][0])
+
+    flight_system.find_highest_priority_flyers_for_upgrade(int(k_highest_priority_flyer))
+
 if __name__ == "__main__":
-    flight_system = FlightSystemUI()
-    flight_system.run_system()
+    """
+    n = Number of flyers in waiting list
+    k = Required K highest priority flyers
+    c = Number of cancellation requests
+    
+    First line of file is n,k,c respectively
+
+    middle section of file are the flyer info up to n flyers. (flyer name, flyer_id, flyer time in queue, flyer status)
+
+    last section are the flyer id of cancellations
+
+    Example file below:
+    
+    ###FILE START###
+    4 1 2
+
+    A 1 30 Platinum
+    B 2 60 Gold
+    C 3 90 Silver
+    D 4 120 Super
+
+    2
+    4
+    
+    ###FILE END###
+
+    Output will print each flyer in order of priority
+
+    Flyer: A
+    Status: Platinum
+    Time in queue: 30
+    Confirmation Code: 1
+    """
+    main("./test_cases.txt")

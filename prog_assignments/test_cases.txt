@@ -1,0 +1,9 @@
+4 1 2
+
+A 1 30 Platinum
+B 2 60 Gold
+C 3 90 Silver
+D 4 120 Super
+
+2
+4
